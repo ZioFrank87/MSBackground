@@ -13,27 +13,33 @@ import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 
 @Component
 public class Auth {
 
-	private static String MS_AUTH;
+
 	
+	private static String MS_AUTH;
+
 	public static final String KEY = "ProvolaMambarella";
 
-	/** ENCRYPTION KEY **/
+	/* ENCRYPTION KEY */
 	private static final String KEY_ALGORITHM = "AES";
 	private static final String DEFAULT_CIPHER_ALGORITHM = "AES/ECB/PKCS5Padding";
 	private static final Integer LENGTH = 128;
+
 	
-	@Value ("${ip.msauth}")
-	public void setAuth(String msAuth) {
+	@Value("${ip.msauth}")
+	public void setMsAuth(String msAuth) {
 		this.MS_AUTH=msAuth;
 	}
 	
 	
-
 	public static String crypt(String strClearText) throws Exception{
 		String strData="";
 
@@ -68,7 +74,7 @@ public class Auth {
 		}
 		return strData;
 	}
-
+	
 	public static String cryptByEncryptionKey(Object toEncrypt, String encryptionKey) {
 		String strData="";
 		String toEncryptJson = new Gson().toJson(toEncrypt);
@@ -84,7 +90,7 @@ public class Auth {
 		}
 		return strData;
 	}
-	
+
 	public static String decryptByEncryptionKey(String strEncrypted, String encryptionKey) {
 		String strData="";
 
@@ -119,15 +125,10 @@ public class Auth {
 
 	public static boolean isAuthorized(Map<String, String> header) {
 
-		// header contiene username e token di chi ha effettuato il login e vuole
-		// effettuare delle operazioni. Username e token sono
-		// contenuti nella stessa Stringa (del tipo "username token") che è il valore
-		// della chiave 'authorization' della mappa header. Lo username sarà mandato
-		// all'applicazione auth, al metodo getTokenByUsername che mi restituisce il
-		// token associato all'username. La response, che
-		// contiene questo token, deve essere confrontata con il token presente
-		// nell'authorization. Se sono uguali, allora chi è
-		// loggato è autorizzato ad effettuare le operazioni richieste
+		// header contiene email criptata,token,encryptionKey di chi ha effettuato il login e vuole
+		// effettuare delle operazioni. email e token sono
+		// separati da uno " ", mentre il token termina con "&:" e segue l encryptionKey.
+
 
 		// header è l'intestazione della richiesta. Spring la mette in automatico grazie
 		// all'annotazione
@@ -145,41 +146,45 @@ public class Auth {
 					String email = authorization.split(" ")[0];
 					String nomeAuth="social_mb";
 
-					String token = tokenAndEncryptionKey.split("&:")[0];
-					try {
-						String decryptedEmail= Auth.decrypt(email);
+					if(tokenAndEncryptionKey.contains("&:")) {
+						String token = tokenAndEncryptionKey.split("&:")[0];
 
-						Map<String, Object> request = new HashMap<>();
-						request.put("email", decryptedEmail);
-						request.put("nomeAuth",nomeAuth);
+						try {
+							String decryptedEmail= Auth.decrypt(email);
 
-						String response = Request.post("http://" + MS_AUTH + ":8084/readIndexInRegister", request, null);
+							Map<String, Object> request = new HashMap<>();
+							request.put("email", decryptedEmail);
+							request.put("nomeAuth",nomeAuth);
 
-						if (!response.equals(token)) {
+							String response = Request.post("http://" + MS_AUTH + ":8084/readIndexInRegister", request, null);
+
+							if (!response.equals(token)) {
+								return false;
+							}
+							// response contiene il token risposta della mia richiesta relativo allo
+							// username inserito
+						} catch (Exception e1) {
 							return false;
 						}
-						// response contiene il token risposta della mia richiesta relativo allo
-						// username inserito
-					} catch (Exception e1) {
-						return false;
+
+						return true;
 					}
 
-					return true;
-				}
 
+				}
 
 			}
 
 			return false;
+
 		}
 
 		return false;
 
 	}
-	
-	// restituisce l encryptionKey
-		public static String getEncryptionKey(Map<String, String> header) {
-			return header.get("authorization").split("&:")[1];
-		}
-}
 
+	// restituisce l encryptionKey
+	public static String getEncryptionKey(Map<String, String> header) {
+		return header.get("authorization").split("&:")[1];
+	}
+}
