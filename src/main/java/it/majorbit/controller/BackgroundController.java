@@ -1,8 +1,10 @@
 package it.majorbit.controller;
-
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,18 +17,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+
 import com.google.gson.Gson;
+
 import it.majorbit.model.Background;
 import it.majorbit.service.BackgroundService;
-import it.majorbit.util.Auth;
 import it.majorbit.service.ErroreService;
+import it.majorbit.util.Auth;
 
 @Controller
 public class BackgroundController {
 
 	@Autowired
 	public BackgroundService backgroundService;
-	
+
 	@Autowired
 	public ErroreService erroreService;
 
@@ -35,36 +39,60 @@ public class BackgroundController {
 
 		if (Auth.isAuthorized(header)) {
 
-			String encryptedString = params.get("r");
+			String encryptedString = (String)params.get("r");
 
 			String encryptionKey = Auth.getEncryptionKey(header);
 
 			String decryptedString = Auth.decryptByEncryptionKey(encryptedString,encryptionKey);
 
-			Map<String,Object> map = new Gson().fromJson(decryptedString,Map.class);
+			Map<String,String> map = new Gson().fromJson(decryptedString,Map.class);
 
 			Background background = new Background();
 
-			background.setImage((String)map.get("image"));
-			backgroundService.registerBackground(background);
+			background.setImage(map.get("image"));
 
+			String dateToParse = (map.get("viewable till")); 
+
+			if(dateToParse==null||dateToParse.isEmpty()) {
+
+				LocalDate date = null;
+				background.setEnabledUntil(date);
+			}
+
+			else {
+
+				LocalDate date;
+
+				try {
+					date = LocalDate.parse(dateToParse);
+				}
+				catch(Exception e) { //spara eccezione se il formato di input della data non è compatibile
+
+					Map<String,Object> error = new HashMap<String,Object>();
+					error.put("hasError", true);
+					error.put("message", erroreService.readErrore("DATE_FORMAT_ERROR").getTextIta());
+					return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+				}
+
+				background.setEnabledUntil(date);
+			}
+
+			backgroundService.registerBackground(background);
 			String messageToBeCrypted = "Sfondo creato con successo";
 			String cryptedMessage = Auth.cryptByEncryptionKey(messageToBeCrypted,encryptionKey);
-			
 			return ResponseEntity.status(HttpStatus.OK).body(cryptedMessage);
 
 		}
 		else {
 
 			Map<String,Object> error = new HashMap<String,Object>(); //mappa di errore generata nel caso in cui l'utente non abbia effettuato il logIn
-
 			error.put("hasError", true);
 			error.put("message", erroreService.readErrore("BACKGROUND_UNAUTHORIZED_ERROR").getTextIta());
-		
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 		}
 
 	}
+
 
 
 	@GetMapping("read_background")
@@ -73,9 +101,9 @@ public class BackgroundController {
 		if (Auth.isAuthorized(header)) {
 
 			String encryptionKey = Auth.getEncryptionKey(header);
-			
+
 			id = id.replace(" ","+");
-					
+
 			String decryptedId = Auth.decryptByEncryptionKey(id,encryptionKey);
 
 			Background background = backgroundService.readBackground(decryptedId);
@@ -99,13 +127,47 @@ public class BackgroundController {
 		} else {
 
 			Map<String,Object> error = new HashMap<String,Object>(); //mappa di errore generata nel caso in cui l'utente non abbia effettuato il logIn
-
 			error.put("hasError", true);
 			error.put("message", erroreService.readErrore("BACKGROUND_UNAUTHORIZED_ERROR").getTextIta()); 
-
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 		}
 	}
+
+
+	@GetMapping ("read_all_backgrounds")
+	public @ResponseBody ResponseEntity<Object> readAllBackgrounds(@RequestHeader Map<String, String> header){
+
+		if (Auth.isAuthorized(header)) {
+
+			Iterable<Background> backgrounds = backgroundService.readAllBackgrounds();
+
+			LocalDate todayDate = LocalDate.now();
+
+			ArrayList<Background> visibleBackgrounds = new ArrayList<Background>();
+
+			for(Background background: backgrounds){
+
+				if (background.getEnabledUntil()==null||background.getEnabledUntil().isAfter(todayDate)||background.getEnabledUntil().isEqual(todayDate)) {
+
+					visibleBackgrounds.add(background);
+				}
+
+			}
+
+			String encryptionKey = Auth.getEncryptionKey(header);
+			String CryptedJsonString = Auth.cryptByEncryptionKey(visibleBackgrounds,encryptionKey);
+			return ResponseEntity.status(HttpStatus.OK).body(CryptedJsonString);
+
+		}
+
+		Map<String,Object> error = new HashMap<String,Object>();
+
+		error.put("hasError", true);
+		error.put("message", erroreService.readErrore("BACKGROUND_UNAUTHORIZED_ERROR").getTextIta()); 
+
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+	}		
+
 
 
 
@@ -115,7 +177,7 @@ public class BackgroundController {
 		if (Auth.isAuthorized(header)) {  //controlla se l'utente è loggato
 
 			String encryptionKey = Auth.getEncryptionKey(header);
-			
+
 			id = id.replace(" ","+");
 
 			String decryptedId = Auth.decryptByEncryptionKey(id,encryptionKey);
@@ -153,11 +215,11 @@ public class BackgroundController {
 	}
 
 
-	
+
 	@PutMapping("update_background")
 	public @ResponseBody ResponseEntity<Object> updateBackground(@RequestBody Map<String,String> params, @RequestHeader Map<String, String> header) { 
 		if (Auth.isAuthorized(header)) { //verifica che l'utente sia loggato
-			
+
 			String encryptedString = params.get("r");
 
 			String encryptionKey = Auth.getEncryptionKey(header);
@@ -165,9 +227,9 @@ public class BackgroundController {
 			String decryptedString = Auth.decryptByEncryptionKey(encryptedString,encryptionKey);
 
 			Map<String,Object> map = new Gson().fromJson(decryptedString,Map.class);
-			
+
 			String decryptedId = (String)map.get("id");
-			
+
 			Background backgroundToBeUpdated = backgroundService.readBackground(decryptedId);
 
 			if(backgroundToBeUpdated!=null) {
@@ -175,13 +237,40 @@ public class BackgroundController {
 				backgroundToBeUpdated.setImage((String)map.get("new image")); 
 				backgroundToBeUpdated.setCost(Integer.parseInt((String)map.get("cost")));
 
+				String dateToParse = ((String)map.get("viewable till")); 
+
+				if(dateToParse==null||dateToParse.isEmpty()) {
+
+					LocalDate date = null;
+					backgroundToBeUpdated.setEnabledUntil(date);
+				}
+
+				else {
+
+					LocalDate date;
+
+					try {
+						date = LocalDate.parse(dateToParse);
+					}
+					catch(Exception e) { //spara eccezione se il formato di input della data non è compatibile
+
+						Map<String,Object> error = new HashMap<String,Object>();
+						error.put("hasError", true);
+						error.put("message", erroreService.readErrore("DATE_FORMAT_ERROR").getTextIta());
+						return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+					}
+
+					backgroundToBeUpdated.setEnabledUntil(date);
+
+				}	
+
 				backgroundService.registerBackground(backgroundToBeUpdated); 
-				
+
 				String messageToBeCrypted = "Sfondo aggiornato";
 				String cryptedMessage = Auth.cryptByEncryptionKey(messageToBeCrypted,encryptionKey); 
 
 				return ResponseEntity.status(HttpStatus.OK).body(cryptedMessage);
-			}	
+			}
 
 			else {
 
@@ -200,5 +289,8 @@ public class BackgroundController {
 			error.put("message", erroreService.readErrore("BACKGROUND_UNAUTHORIZED_ERROR").getTextIta());
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 		}
+
+
 	}
 }
+

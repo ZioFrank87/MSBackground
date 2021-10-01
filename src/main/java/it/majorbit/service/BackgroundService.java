@@ -16,7 +16,11 @@ public class BackgroundService {
 	public Background readBackground(String code) {
 		return backgroundRepository.findById(code).orElse(null);
 	}
-
+	
+	public Iterable<Background> readAllBackgrounds() {
+		return backgroundRepository.findAll();
+	}
+	
 
 	public void registerBackground(Background background) {
 		backgroundRepository.save(background);
