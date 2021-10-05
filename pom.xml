@@ -8,7 +8,7 @@
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>2.5.4</version>
 		<relativePath /> <!-- lookup parent from repository -->
-	</parent>
+	</parent>	
 	<groupId>it.majorbit</groupId>
 	<artifactId>MSBackground</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
