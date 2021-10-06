@@ -167,6 +167,28 @@ public class BackgroundController {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 	}		
 
+	
+	@GetMapping ("read_all_backgrounds_any_date")
+	public @ResponseBody ResponseEntity<Object> readAllBackgroundsAnyDate(@RequestHeader Map<String, String> header){
+
+		if (Auth.isAuthorized(header)) {
+
+			Iterable<Background> backgrounds = backgroundService.readAllBackgrounds();
+
+			String encryptionKey = Auth.getEncryptionKey(header);
+			String CryptedJsonString = Auth.cryptByEncryptionKey(backgrounds,encryptionKey);
+			return ResponseEntity.status(HttpStatus.OK).body(CryptedJsonString);
+
+		}
+
+		Map<String,Object> error = new HashMap<String,Object>();
+
+		error.put("hasError", true);
+		error.put("message", erroreService.readErrore("BACKGROUND_UNAUTHORIZED_ERROR").getTextIta()); 
+
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+	}		
+
 
 
 
