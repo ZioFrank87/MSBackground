@@ -95,16 +95,20 @@ public class BackgroundController {
 	}
 
 
-	@GetMapping("read_background_cost")
-	public @ResponseBody ResponseEntity<Object> readBackgroundCost(@RequestParam String id, @RequestHeader Map<String, String> header){
+	@PostMapping("read_background_cost")
+	public @ResponseBody ResponseEntity<Object> readBackgroundCost(@RequestBody Map<String,String> params, @RequestHeader Map<String, String> header){
 
 		if (Auth.isAuthorized(header)) {
 
+			String encryptedString = (String)params.get("r");
+
 			String encryptionKey = Auth.getEncryptionKey(header);
 
-			id = id.replace(" ","+");
+			String decryptedString = Auth.decryptByEncryptionKey(encryptedString,encryptionKey);
 
-			String decryptedId = Auth.decryptByEncryptionKey(id,encryptionKey);
+			Map<String,String> map = new Gson().fromJson(decryptedString,Map.class);
+			
+			String decryptedId = map.get("code");
 
 			Background background = backgroundService.readBackground(decryptedId);
 
