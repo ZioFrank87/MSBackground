@@ -95,6 +95,46 @@ public class BackgroundController {
 	}
 
 
+	@GetMapping("read_background_cost")
+	public @ResponseBody ResponseEntity<Object> readBackgroundCost(@RequestParam String id, @RequestHeader Map<String, String> header){
+
+		if (Auth.isAuthorized(header)) {
+
+			String encryptionKey = Auth.getEncryptionKey(header);
+
+			id = id.replace(" ","+");
+
+			String decryptedId = Auth.decryptByEncryptionKey(id,encryptionKey);
+
+			Background background = backgroundService.readBackground(decryptedId);
+
+			if(background!=null) { 
+				
+				Integer cost = background.getCost();
+
+				String CryptedJsonString = Auth.cryptByEncryptionKey(cost,encryptionKey);
+
+				return ResponseEntity.status(HttpStatus.OK).body(CryptedJsonString);
+			}
+
+			else {
+
+				Map<String,Object> error = new HashMap<String,Object>(); //mappa di errore generata nel caso in cui lo sfondo cercato non esista
+				error.put("hasError", true);
+				error.put("message", erroreService.readErrore("BACKGROUND_NOT_EXISTING_ERROR").getTextIta());
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+
+			}
+
+		} else {
+
+			Map<String,Object> error = new HashMap<String,Object>(); //mappa di errore generata nel caso in cui l'utente non abbia effettuato il logIn
+			error.put("hasError", true);
+			error.put("message", erroreService.readErrore("BACKGROUND_UNAUTHORIZED_ERROR").getTextIta()); 
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+		}
+	}
+
 
 	@GetMapping("read_background")
 	public @ResponseBody ResponseEntity<Object> readBackground(@RequestParam String id, @RequestHeader Map<String, String> header){
