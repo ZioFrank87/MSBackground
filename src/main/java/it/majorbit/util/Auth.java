@@ -157,7 +157,9 @@ public class Auth {
 
 						String response = Request.post("http://" + MS_AUTH + ":8084/readIndexInRegister", request, null);
 
-						if (!response.equals(token)) {
+						String tokenResponse=response.split(" ")[1].split("&:")[0];
+						
+						if (!tokenResponse.equals(token)) {
 							return false;
 						}
 						// response contiene il token risposta della mia richiesta relativo allo
