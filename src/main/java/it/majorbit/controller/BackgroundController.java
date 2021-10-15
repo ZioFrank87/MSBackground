@@ -3,7 +3,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-
 import com.google.gson.Gson;
-
 import it.majorbit.model.Background;
 import it.majorbit.service.BackgroundService;
 import it.majorbit.service.ErroreService;
@@ -38,7 +35,9 @@ public class BackgroundController {
 	@PostMapping("register_background")
 	public @ResponseBody ResponseEntity<Object> registerBackground(@RequestBody Map<String,String> params,@RequestHeader Map<String, String> header){
 
-		if (Auth.isAuthorized(header)) {
+		String authorization = Auth.isAuthorized(header);
+		
+		if (authorization != null) {
 
 			String encryptedString = (String)params.get("r");
 
@@ -72,7 +71,8 @@ public class BackgroundController {
 					Map<String,Object> error = new HashMap<String,Object>();
 					error.put("hasError", true);
 					error.put("message", erroreService.readErrore("DATE_FORMAT_ERROR").getTextIta());
-					return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+					return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Authorization", authorization)
+							.header("Access-Control-Expose-Headers", "authorization").body(error);
 				}
 
 				background.setEnabledUntil(date);
@@ -81,8 +81,10 @@ public class BackgroundController {
 			backgroundService.registerBackground(background);
 			String messageToBeCrypted = "Sfondo creato con successo";
 			String cryptedMessage = Auth.cryptByEncryptionKey(messageToBeCrypted,encryptionKey);
-			return ResponseEntity.status(HttpStatus.OK).body(cryptedMessage);
-
+		
+			return ResponseEntity.status(HttpStatus.OK).header("Authorization", authorization)
+					.header("Access-Control-Expose-Headers", "authorization").body(cryptedMessage);
+		
 		}
 		else {
 
@@ -98,7 +100,9 @@ public class BackgroundController {
 	@PostMapping("read_background_cost")
 	public @ResponseBody ResponseEntity<Object> readBackgroundCost(@RequestBody Map<String,String> params, @RequestHeader Map<String, String> header){
 
-		if (Auth.isAuthorized(header)) {
+		String authorization = Auth.isAuthorized(header);
+		
+		if (authorization != null) {
 			
 			String encryptedString = (String)params.get("r");
 
@@ -117,8 +121,10 @@ public class BackgroundController {
 				Integer cost = background.getCost();
 
 				String CryptedJsonString = Auth.cryptByEncryptionKey(cost,encryptionKey);
-
-				return ResponseEntity.status(HttpStatus.OK).body(CryptedJsonString);
+				
+				return ResponseEntity.status(HttpStatus.OK).header("Authorization", authorization)
+						.header("Access-Control-Expose-Headers", "authorization").body(CryptedJsonString);
+				
 			}
 
 			else {
@@ -143,7 +149,9 @@ public class BackgroundController {
 	@GetMapping("read_background")
 	public @ResponseBody ResponseEntity<Object> readBackground(@RequestParam String id, @RequestHeader Map<String, String> header){
 
-		if (Auth.isAuthorized(header)) {
+		String authorization = Auth.isAuthorized(header);
+		
+		if (authorization != null) {
 
 			String encryptionKey = Auth.getEncryptionKey(header);
 
@@ -157,7 +165,8 @@ public class BackgroundController {
 
 				String CryptedJsonString = Auth.cryptByEncryptionKey(background,encryptionKey);
 
-				return ResponseEntity.status(HttpStatus.OK).body(CryptedJsonString);
+				return ResponseEntity.status(HttpStatus.OK).header("Authorization", authorization)
+						.header("Access-Control-Expose-Headers", "authorization").body(CryptedJsonString);
 			}
 
 			else {
@@ -165,7 +174,8 @@ public class BackgroundController {
 				Map<String,Object> error = new HashMap<String,Object>(); //mappa di errore generata nel caso in cui lo sfondo cercato non esista
 				error.put("hasError", true);
 				error.put("message", erroreService.readErrore("BACKGROUND_NOT_EXISTING_ERROR").getTextIta());
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Authorization", authorization)
+						.header("Access-Control-Expose-Headers", "authorization").body(error);
 
 			}
 
@@ -182,7 +192,9 @@ public class BackgroundController {
 	@GetMapping ("read_all_backgrounds")
 	public @ResponseBody ResponseEntity<Object> readAllBackgrounds(@RequestHeader Map<String, String> header){
 
-		if (Auth.isAuthorized(header)) {
+		String authorization = Auth.isAuthorized(header);
+		
+			if (authorization != null) {
 
 			Iterable<Background> backgrounds = backgroundService.readAllBackgrounds();
 
@@ -196,12 +208,14 @@ public class BackgroundController {
 
 					visibleBackgrounds.add(background);
 				}
-
+				
 			}
 
 			String encryptionKey = Auth.getEncryptionKey(header);
 			String CryptedJsonString = Auth.cryptByEncryptionKey(visibleBackgrounds,encryptionKey);
-			return ResponseEntity.status(HttpStatus.OK).body(CryptedJsonString);
+			
+			return ResponseEntity.status(HttpStatus.OK).header("Authorization", authorization)
+					.header("Access-Control-Expose-Headers", "authorization").body(CryptedJsonString);
 
 		}
 
@@ -217,13 +231,17 @@ public class BackgroundController {
 	@GetMapping ("read_all_backgrounds_any_date")
 	public @ResponseBody ResponseEntity<Object> readAllBackgroundsAnyDate(@RequestHeader Map<String, String> header){
 
-		if (Auth.isAuthorized(header)) {
+		String authorization = Auth.isAuthorized(header);
+		
+			if (authorization != null)  {
 
 			Iterable<Background> backgrounds = backgroundService.readAllBackgrounds();
 
 			String encryptionKey = Auth.getEncryptionKey(header);
 			String CryptedJsonString = Auth.cryptByEncryptionKey(backgrounds,encryptionKey);
-			return ResponseEntity.status(HttpStatus.OK).body(CryptedJsonString);
+			
+			return ResponseEntity.status(HttpStatus.OK).header("Authorization", authorization)
+					.header("Access-Control-Expose-Headers", "authorization").body(CryptedJsonString);
 
 		}
 
@@ -241,7 +259,9 @@ public class BackgroundController {
 	@DeleteMapping("delete_background")
 	public @ResponseBody ResponseEntity<Object> deleteBackground(@RequestParam String id, @RequestHeader Map<String, String> header){
 
-		if (Auth.isAuthorized(header)) {  //controlla se l'utente è loggato
+		String authorization = Auth.isAuthorized(header);
+		
+			if (authorization != null) {  //controlla se l'utente è loggato
 
 			String encryptionKey = Auth.getEncryptionKey(header);
 
@@ -256,9 +276,11 @@ public class BackgroundController {
 				backgroundService. deleteGroup(backgroundToBeDeleted);
 
 				String messageToBeCrypted = "Sfondo eliminato";
-				String cryptedMessage = Auth.cryptByEncryptionKey(messageToBeCrypted,encryptionKey); 
-
-				return ResponseEntity.status(HttpStatus.OK).body(cryptedMessage);
+				String cryptedMessage = Auth.cryptByEncryptionKey(messageToBeCrypted,encryptionKey);
+				
+				return ResponseEntity.status(HttpStatus.OK).header("Authorization", authorization)
+						.header("Access-Control-Expose-Headers", "authorization").body(cryptedMessage);
+			
 			}	
 
 			else {
@@ -268,7 +290,8 @@ public class BackgroundController {
 				error.put("hasError", true);
 				error.put("message", erroreService.readErrore("BACKGROUND_NOT_EXISTING_ERROR").getTextIta());
 
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Authorization", authorization)
+						.header("Access-Control-Expose-Headers", "authorization").body(error);
 			}
 
 		} else {
@@ -285,7 +308,10 @@ public class BackgroundController {
 
 	@PutMapping("update_background")
 	public @ResponseBody ResponseEntity<Object> updateBackground(@RequestBody Map<String,String> params, @RequestHeader Map<String, String> header) { 
-		if (Auth.isAuthorized(header)) { //verifica che l'utente sia loggato
+		
+		String authorization = Auth.isAuthorized(header);
+		
+		if (authorization != null)  { //verifica che l'utente sia loggato
 
 			String encryptedString = params.get("r");
 
@@ -324,7 +350,8 @@ public class BackgroundController {
 						Map<String,Object> error = new HashMap<String,Object>();
 						error.put("hasError", true);
 						error.put("message", erroreService.readErrore("DATE_FORMAT_ERROR").getTextIta());
-						return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+						return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Authorization", authorization)
+								.header("Access-Control-Expose-Headers", "authorization").body(error);
 					}
 
 					backgroundToBeUpdated.setEnabledUntil(date);
@@ -336,7 +363,8 @@ public class BackgroundController {
 				String messageToBeCrypted = "Sfondo aggiornato";
 				String cryptedMessage = Auth.cryptByEncryptionKey(messageToBeCrypted,encryptionKey); 
 
-				return ResponseEntity.status(HttpStatus.OK).body(cryptedMessage);
+				return ResponseEntity.status(HttpStatus.OK).header("Authorization", authorization)
+						.header("Access-Control-Expose-Headers", "authorization").body(cryptedMessage);
 			}
 
 			else {
@@ -344,7 +372,8 @@ public class BackgroundController {
 				Map<String,Object> error = new HashMap<String,Object>(); //mappa di errore generata nel caso in cui il gruppo non esista
 				error.put("hasError", true);
 				error.put("message", erroreService.readErrore("BACKGROUND_NOT_EXISTING_ERROR").getTextIta());
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Authorization", authorization)
+						.header("Access-Control-Expose-Headers", "authorization").body(error);
 			}
 
 		}
@@ -356,7 +385,6 @@ public class BackgroundController {
 			error.put("message", erroreService.readErrore("BACKGROUND_UNAUTHORIZED_ERROR").getTextIta());
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
 		}
-
 
 	}
 }
